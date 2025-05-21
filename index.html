@@ -1,0 +1,1119 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture Quiz: FC-SAN</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tajawal', 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f4f4f9;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        header {
+            background-color: #1a2a44;
+            color: white;
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+        }
+
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: color 0.3s ease;
+        }
+
+        nav ul li a:hover {
+            color: #ff8c00;
+        }
+
+        .hero {
+            padding: 6rem 2rem 2rem;
+            text-align: center;
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://source.unsplash.com/random/1920x1080?cloud-computing');
+            background-size: cover;
+            background-position: center;
+            color: white;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            animation: fadeIn 1s ease-in;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+        }
+
+        .progress-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .progress-bar {
+            background-color: #ddd;
+            border-radius: 5px;
+            height: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            background-color: #ff8c00;
+            height: 100%;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        body.dark-mode .quiz-container {
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+        }
+
+        .quiz-container:hover {
+            transform: translateY(-5px);
+        }
+
+        .quiz-container h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #1a2a44;
+        }
+
+        body.dark-mode .quiz-container h2 {
+            color: #ff8c00;
+        }
+
+        .question {
+            display: none;
+        }
+
+        .question.active {
+            display: block;
+        }
+
+        .question p {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .option {
+            display: block;
+            background-color: #f0f0f0;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        body.dark-mode .option {
+            background-color: #3a3a3a;
+        }
+
+        .option:hover {
+            background-color: #ff8c00;
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .option input[type="radio"] {
+            display: none;
+        }
+
+        .option label {
+            display: block;
+            font-size: 1rem;
+            cursor: pointer;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .option.wrong {
+            background-color: #ff4d4d;
+            color: white;
+        }
+
+        .option.correct {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .explanation {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            direction: rtl;
+            text-align: right;
+            color: #2c3e50;
+        }
+
+        body.dark-mode .explanation {
+            background-color: #3a3a3a;
+            color: #b0bec5;
+        }
+
+        .option input[type="radio"]:checked + label + .explanation {
+            display: block;
+        }
+
+        button {
+            background-color: #1a2a44;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+            margin: 1rem auto;
+            display: block;
+        }
+
+        button:hover {
+            background-color: #ff8c00;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .score-container {
+            display: none;
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .score-container h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            background-color: #1a2a44;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        footer p {
+            margin: 0.5rem 0;
+        }
+
+        footer a {
+            color: #ff8c00;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        footer a:hover {
+            color: #fff;
+        }
+
+        .term {
+            direction: ltr;
+            display: inline;
+            unicode-bidi: embed;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .quiz-container {
+                margin: 1rem;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">XE_Ahmed | Cloud Quiz</div>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#quiz">Quiz</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero" id="home">
+        <div>
+            <h1>Lecture 8: FC-SAN Quiz</h1>
+            <p>This quiz page was created by Eng: XE Ahmed Refat – EELU Student Sohag branch</p>
+        </div>
+    </section>
+
+    <div class="progress-container">
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+    </div>
+
+    <section class="quiz-container" id="quiz">
+        <h2>FC-SAN Quiz</h2>
+        <form id="quiz-form">
+            <!-- MCQ Questions -->
+            <div class="question" data-correct="b">
+                <p>1. What is the primary purpose of a SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q1" value="a" id="q1a">
+                    <label for="q1a">a) Providing internet connectivity</label>
+                    <div class="explanation">غلط: الـ <span class="term">SAN</span> مش بتوفر اتصال بالإنترنت، دي شبكة مصممة لنقل البيانات بين الأنظمة وأجهزة التخزين. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q1" value="b" id="q1b">
+                    <label for="q1b">b) Transferring data between systems and storage devices</label>
+                    <div class="explanation">صح: الـ <span class="term">SAN</span> هي شبكة مخصصة لنقل البيانات بين الأنظمة الحاسوبية وأجهزة التخزين أو بين أجهزة التخزين نفسها.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q1" value="c" id="q1c">
+                    <label for="q1c">c) Managing databases</label>
+                    <div class="explanation">غلط: إدارة قواعد البيانات مش الغرض الأساسي للـ <span class="term">SAN</span>. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q1" value="d" id="q1d">
+                    <label for="q1d">d) Running cloud applications</label>
+                    <div class="explanation">غلط: الـ <span class="term">SAN</span> مش مخصصة لتشغيل التطبيقات السحابية، بل لنقل البيانات. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>2. Which protocol is used in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q2" value="a" id="q2a">
+                    <label for="q2a">a) Fibre Channel</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-SAN</span> بيستخدم بروتوكول <span class="term">Fibre Channel</span> للتواصل بين الأنظمة وأجهزة التخزين.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q2" value="b" id="q2b">
+                    <label for="q2b">b) Ethernet</label>
+                    <div class="explanation">غلط: الـ <span class="term">Ethernet</span> بيُستخدم في <span class="term">FCoE-SAN</span> مش <span class="term">FC-SAN</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q2" value="c" id="q2c">
+                    <label for="q2c">c) IP</label>
+                    <div class="explanation">غلط: الـ <span class="term">IP</span> بيُستخدم في <span class="term">IP-SAN</span>، مش <span class="term">FC-SAN</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q2" value="d" id="q2d">
+                    <label for="q2d">d) SCSI</label>
+                    <div class="explanation">غلط: الـ <span class="term">SCSI</span> هو بروتوكول علوي يُستخدم في طبقة <span class="term">FC-4</span>، لكن البروتوكول الأساسي للـ <span class="term">FC-SAN</span> هو <span class="term">Fibre Channel</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="c">
+                <p>3. What is the maximum data transfer speed in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q3" value="a" id="q3a">
+                    <label for="q3a">a) 1 Gb/s</label>
+                    <div class="explanation">غلط: سرعة الـ <span class="term">FC-SAN</span> أعلى بكتير من 1 Gb/s. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q3" value="b" id="q3b">
+                    <label for="q3b">b) 8 Gb/s</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-SAN</span> بيدعم سرعات أعلى من 8 Gb/s. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q3" value="c" id="q3c">
+                    <label for="q3c">c) 16 Gb/s</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-SAN</span> بيدعم سرعة نقل بيانات تصل إلى <span class="term">16 Gb/s</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q3" value="d" id="q3d">
+                    <label for="q3d">d) 100 Gb/s</label>
+                    <div class="explanation">غلط: سرعة <span class="term">100 Gb/s</span> أعلى من المدعوم حاليًا في <span class="term">FC-SAN</span>. الإجابة الصحيحة هي c.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>4. How many devices can FC-SAN theoretically support?</p>
+                <div class="option">
+                    <input type="radio" name="q4" value="a" id="q4a">
+                    <label for="q4a">a) 15 million</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-SAN</span> بتدعم نظريًا حوالي <span class="term">15 million</span> جهاز بسبب هيكلية العنونة (<span class="term">239 domains × 256 areas × 256 ports</span>).</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q4" value="b" id="q4b">
+                    <label for="q4b">b) 1 million</label>
+                    <div class="explanation">غلط: عدد الأجهزة المدعومة أكبر بكتير من مليون. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q4" value="c" id="q4c">
+                    <label for="q4c">c) 100,000</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-SAN</span> بتدعم عدد أجهزة أكبر بكتير. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q4" value="d" id="q4d">
+                    <label for="q4d">d) 10,000</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-SAN</span> بتدعم عدد أجهزة أكبر بكتير. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="b">
+                <p>5. Which type of cables is used for long distances in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q5" value="a" id="q5a">
+                    <label for="q5a">a) Copper cables</label>
+                    <div class="explanation">غلط: كابلات النحاس (<span class="term">Copper cables</span>) بتُستخدم للمسافات القصيرة فقط. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q5" value="b" id="q5b">
+                    <label for="q5b">b) Optical fiber cables</label>
+                    <div class="explanation">صح: كابلات الألياف البصرية (<span class="term">Optical fiber cables</span>) بتُستخدم للمسافات الطويلة في <span class="term">FC-SAN</span>، وبتكون إما <span class="term">multimode</span> أو <span class="term">single-mode</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q5" value="c" id="q5c">
+                    <label for="q5c">c) Coaxial cables</label>
+                    <div class="explanation">غلط: الكابلات المحورية (<span class="term">Coaxial cables</span>) مش بتُستخدم في <span class="term">FC-SAN</span>. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q5" value="d" id="q5d">
+                    <label for="q5d">d) Ethernet cables</label>
+                    <div class="explanation">غلط: كابلات الإيثرنت (<span class="term">Ethernet cables</span>) بتُستخدم في شبكات أخرى زي <span class="term">FCoE</span>، مش <span class="term">FC-SAN</span>. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="c">
+                <p>6. Which device provides dedicated connectivity for each node in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q6" value="a" id="q6a">
+                    <label for="q6a">a) FC Hub</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC Hub</span> بيوصل العقد في حلقة مشتركة (<span class="term">logical loop</span>)، مش بيوفر اتصال مخصص. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q6" value="b" id="q6b">
+                    <label for="q6b">b) FC Router</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC Router</span> مش جهاز أساسي في <span class="term">FC-SAN</span>. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q6" value="c" id="q6c">
+                    <label for="q6c">c) FC Switch</label>
+                    <div class="explanation">صح: الـ <span class="term">FC Switch</span> بيوفر مسار اتصال مخصص لكل عقدة، مما يعزز الأداء والتوسع.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q6" value="d" id="q6d">
+                    <label for="q6d">d) FC Director</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC Director</span> هو نوع متقدم من <span class="term">FC Switch</span>، لكنه مش الإجابة الأساسية هنا. الإجابة الصحيحة هي c.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>7. Which device has a modular design with a higher port count?</p>
+                <div class="option">
+                    <input type="radio" name="q7" value="a" id="q7a">
+                    <label for="q7a">a) FC Director</label>
+                    <div class="explanation">صح: الـ <span class="term">FC Director</span> هو سويتش متقدم بتصميم معياري (<span class="term">modular architecture</span>) وعدد منافذ أعلى، مع مكونات زائدة عن الحاجة وقابلة للتبديل السريع.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q7" value="b" id="q7b">
+                    <label for="q7b">b) FC Hub</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC Hub</span> بيوفر اتصال محدود ومش معياري. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q7" value="c" id="q7c">
+                    <label for="q7c">c) FC Switch</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC Switch</span> بيوفر عدد منافذ ثابت، ومش دايمًا معياري زي الـ <span class="term">FC Director</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q7" value="d" id="q7d">
+                    <label for="q7d">d) FC HBA</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC HBA</span> هو محول شبكة، مش جهاز توصيل معياري. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="b">
+                <p>8. Which connectivity option allows direct connection between two nodes only?</p>
+                <div class="option">
+                    <input type="radio" name="q8" value="a" id="q8a">
+                    <label for="q8a">a) FC-AL</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-AL</span> (Arbitrated Loop) بيوفر حلقة مشتركة للعقد، مش اتصال مباشر. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q8" value="b" id="q8b">
+                    <label for="q8b">b) Point-to-point</label>
+                    <div class="explanation">صح: الـ <span class="term">Point-to-point</span> بيسمح باتصال مباشر بين عقدتين فقط في <span class="term">FC-SAN</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q8" value="c" id="q8c">
+                    <label for="q8c">c) FC-SW</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-SW</span> (Switched Fabric) بيوفر اتصال متعدد العقد عبر سويتشات. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q8" value="d" id="q8d">
+                    <label for="q8d">d) Mesh</label>
+                    <div class="explanation">غلط: الـ <span class="term">Mesh</span> هو توبولوجي يشمل عدة سويتشات، مش اتصال مباشر. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="c">
+                <p>9. Which FC protocol layer defines the physical interface?</p>
+                <div class="option">
+                    <input type="radio" name="q9" value="a" id="q9a">
+                    <label for="q9a">a) FC-4</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-4</span> بتحدد ربط البروتوكولات العليا (<span class="term">ULPs</span>). الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q9" value="b" id="q9b">
+                    <label for="q9b">b) FC-2</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-2</span> بتحدد العنونة وتنظيم البيانات. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q9" value="c" id="q9c">
+                    <label for="q9c">c) FC-0</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-0</span> هي الطبقة الأدنى في بروتوكول <span class="term">FC</span> وبتحدد الواجهة الفيزيائية والكابلات ونقل البتات.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q9" value="d" id="q9d">
+                    <label for="q9d">d) FC-3</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-3</span> بتوفر خدمات مشتركة، مش الواجهة الفيزيائية. الإجابة الصحيحة هي c.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>10. Which layer is responsible for encoding and decoding in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q10" value="a" id="q10a">
+                    <label for="q10a">a) FC-1</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-1</span> بتحدد كيفية تشفير البيانات (<span class="term">8-bit to 10-bit</span>) وفك تشفيرها، بالإضافة إلى تهيئة الرابط واستعادة الأخطاء.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q10" value="b" id="q10b">
+                    <label for="q10b">b) FC-2</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-2</span> بتدير العنونة والتحكم في التدفق. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q10" value="c" id="q10c">
+                    <label for="q10c">c) FC-4</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-4</span> بتربط البروتوكولات العليا مثل <span class="term">SCSI</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q10" value="d" id="q10d">
+                    <label for="q10d">d) FC-0</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-0</span> بتحدد الواجهة الفيزيائية، مش التشفير. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="b">
+                <p>11. Which layer defines the addressing structure in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q11" value="a" id="q11a">
+                    <label for="q11a">a) FC-0</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-0</span> بتحدد الواجهة الفيزيائية. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q11" value="b" id="q11b">
+                    <label for="q11b">b) FC-2</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-2</span> بتحدد هيكلية العنونة، تنظيم البيانات (<span class="term">frames, sequences, exchanges</span>)، والتحكم في التدفق.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q11" value="c" id="q11c">
+                    <label for="q11c">c) FC-3</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-3</span> بتوفر خدمات مشتركة. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q11" value="d" id="q11d">
+                    <label for="q11d">d) FC-4</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-4</span> بتربط البروتوكولات العليا. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="c">
+                <p>12. What is assigned to ports during Fabric login?</p>
+                <div class="option">
+                    <input type="radio" name="q12" value="a" id="q12a">
+                    <label for="q12a">a) WWNN</label>
+                    <div class="explanation">غلط: الـ <span class="term">WWNN</span> هو معرف ثابت للمحول، مش بيُخصص ديناميكيًا. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q12" value="b" id="q12b">
+                    <label for="q12b">b) WWPN</label>
+                    <div class="explanation">غلط: الـ <span class="term">WWPN</span> هو معرف ثابت للمنفذ، مش بيُخصص ديناميكيًا. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q12" value="c" id="q12c">
+                    <label for="q12c">c) FC Address</label>
+                    <div class="explanation">صح: الـ <span class="term">FC Address</span> (يتكون من <span class="term">Domain ID, Area ID, Port ID</span>) بيُخصص ديناميكيًا للمنافذ أثناء عملية <span class="term">Fabric Login</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q12" value="d" id="q12d">
+                    <label for="q12d">d) MAC Address</label>
+                    <div class="explanation">غلط: الـ <span class="term">MAC Address</span> بيُستخدم في شبكات <span class="term">Ethernet</span>، مش في <span class="term">FC-SAN</span>. الإجابة الصحيحة هي c.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>13. What is considered a fixed identifier for ports in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q13" value="a" id="q13a">
+                    <label for="q13a">a) World Wide Name (WWN)</label>
+                    <div class="explanation">صح: الـ <span class="term">World Wide Name (WWN)</span> هو معرف ثابت 64 بت (<span class="term">WWNN</span> للمحول و<span class="term">WWPN</span> للمنافذ) يُستخدم في <span class="term">FC-SAN</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q13" value="b" id="q13b">
+                    <label for="q13b">b) FC Address</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC Address</span> بيُخصص ديناميكيًا أثناء <span class="term">Fabric Login</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q13" value="c" id="q13c">
+                    <label for="q13c">c) Domain ID</label>
+                    <div class="explanation">غلط: الـ <span class="term">Domain ID</span> جزء من الـ <span class="term">FC Address</span>، مش معرف ثابت. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q13" value="d" id="q13d">
+                    <label for="q13d">d) Area ID</label>
+                    <div class="explanation">غلط: الـ <span class="term">Area ID</span> جزء من الـ <span class="term">FC Address</span>، مش معرف ثابت. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="b">
+                <p>14. How many Domain IDs are available in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q14" value="a" id="q14a">
+                    <label for="q14a">a) 128</label>
+                    <div class="explanation">غلط: عدد الـ <span class="term">Domain IDs</span> المتاحة أكبر من 128. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q14" value="b" id="q14b">
+                    <label for="q14b">b) 239</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-SAN</span> بتدعم <span class="term">239 Domain IDs</span> لكل سويتش في الـ <span class="term">fabric</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q14" value="c" id="q14c">
+                    <label for="q14c">c) 256</label>
+                    <div class="explanation">غلط: الـ <span class="term">256</span> بيُستخدم للـ <span class="term">Area IDs</span> و<span class="term">Port IDs</span>، مش للـ <span class="term">Domain IDs</span>. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q14" value="d" id="q14d">
+                    <label for="q14d">d) 512</label>
+                    <div class="explanation">غلط: عدد الـ <span class="term">Domain IDs</span> محدود بـ <span class="term">239</span>. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="c">
+                <p>15. What is the basic unit of data transfer in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q15" value="a" id="q15a">
+                    <label for="q15a">a) Exchange</label>
+                    <div class="explanation">غلط: الـ <span class="term">Exchange</span> بيحتوي على عدة <span class="term">sequences</span>، مش الوحدة الأساسية. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q15" value="b" id="q15b">
+                    <label for="q15b">b) Sequence</label>
+                    <div class="explanation">غلط: الـ <span class="term">Sequence</span> بيحتوي على عدة <span class="term">frames</span>، مش الوحدة الأساسية. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q15" value="c" id="q15c">
+                    <label for="q15c">c) Frame</label>
+                    <div class="explanation">صح: الـ <span class="term">Frame</span> هو الوحدة الأساسية لنقل البيانات في <span class="term">FC-SAN</span>، ويتكون من <span class="term">SOF, Header, Data, CRC, EOF</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q15" value="d" id="q15d">
+                    <label for="q15d">d) Packet</label>
+                    <div class="explanation">غلط: الـ <span class="term">Packet</span> بيُستخدم في شبكات <span class="term">IP</span>، مش في <span class="term">FC-SAN</span>. الإجابة الصحيحة هي c.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>16. What is the size of the data field in an FC frame?</p>
+                <div class="option">
+                    <input type="radio" name="q16" value="a" id="q16a">
+                    <label for="q16a">a) 0-2112 Bytes</label>
+                    <div class="explanation">صح: حقل البيانات (<span class="term">Data Field</span>) في إطار <span class="term">FC</span> بيكون حجمه من <span class="term">0 إلى 2112 بايت</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q16" value="b" id="q16b">
+                    <label for="q16b">b) 0-1024 Bytes</label>
+                    <div class="explanation">غلط: حجم حقل البيانات أكبر من <span class="term">1024 بايت</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q16" value="c" id="q16c">
+                    <label for="q16c">c) 0-4096 Bytes</label>
+                    <div class="explanation">غلط: الحد الأقصى لحقل البيانات هو <span class="term">2112 بايت</span>، مش <span class="term">4096 بايت</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q16" value="d" id="q16d">
+                    <label for="q16d">d) 0-512 Bytes</label>
+                    <div class="explanation">غلط: حجم حقل البيانات أكبر من <span class="term">512 بايت</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="b">
+                <p>17. What mechanism is used for flow control in FC-SAN?</p>
+                <div class="option">
+                    <input type="radio" name="q17" value="a" id="q17a">
+                    <label for="q17a">a) Flow Control Protocol</label>
+                    <div class="explanation">غلط: لا يوجد شيء اسمه <span class="term">Flow Control Protocol</span> في <span class="term">FC-SAN</span>. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q17" value="b" id="q17b">
+                    <label for="q17b">b) Buffer-to-Buffer Credit</label>
+                    <div class="explanation">صح: الـ <span class="term">Buffer-to-Buffer Credit</span> (BB_Credit) هو الآلية المستخدمة للتحكم في التدفق بين منافذ <span class="term">FC</span>، باستخدام إشعارات <span class="term">R_RDY</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q17" value="c" id="q17c">
+                    <label for="q17c">c) Link Aggregation</label>
+                    <div class="explanation">غلط: الـ <span class="term">Link Aggregation</span> بيدمج الـ <span class="term">ISLs</span> لزيادة الإنتاجية، مش للتحكم في التدفق. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q17" value="d" id="q17d">
+                    <label for="q17d">d) Zoning</label>
+                    <div class="explanation">غلط: الـ <span class="term">Zoning</span> بيقسم الـ <span class="term">fabric</span> للتحكم في الوصول، مش التدفق. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="c">
+                <p>18. Which topology requires the use of ISLs?</p>
+                <div class="option">
+                    <input type="radio" name="q18" value="a" id="q18a">
+                    <label for="q18a">a) Single-switch</label>
+                    <div class="explanation">غلط: الـ <span class="term">Single-switch Topology</span> مش بيحتاج <span class="term">ISLs</span> لأن كل الأنظمة متصلة بسويتش واحد. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q18" value="b" id="q18b">
+                    <label for="q18b">b) Point-to-point</label>
+                    <div class="explanation">غلط: الـ <span class="term">Point-to-point</span> هو اتصال مباشر بين عقدتين، مش بيحتاج <span class="term">ISLs</span>. الإجابة الصحيحة هي c.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q18" value="c" id="q18c">
+                    <label for="q18c">c) Mesh</label>
+                    <div class="explanation">صح: الـ <span class="term">Mesh Topology</span> (سواء <span class="term">Full</span> أو <span class="term">Partial</span>) بيحتاج <span class="term">ISLs</span> لتوصيل السويتشات ببعضها.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q18" value="d" id="q18d">
+                    <label for="q18d">d) FC-AL</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-AL</span> (Arbitrated Loop) مش بيستخدم <span class="term">ISLs</span>، لأنه حلقة مشتركة. الإجابة الصحيحة هي c.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="b">
+                <p>19. What allows dividing nodes in the Fabric into logical groups?</p>
+                <div class="option">
+                    <input type="radio" name="q19" value="a" id="q19a">
+                    <label for="q19a">a) Link Aggregation</label>
+                    <div class="explanation">غلط: الـ <span class="term">Link Aggregation</span> بيدمج الـ <span class="term">ISLs</span>، مش بيقسم العقد. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q19" value="b" id="q19b">
+                    <label for="q19b">b) Zoning</label>
+                    <div class="explanation">صح: الـ <span class="term">Zoning</span> بيسمح بتقسيم العقد في الـ <span class="term">fabric</span> إلى مجموعات منطقية للتحكم في الوصول.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q19" value="c" id="q19c">
+                    <label for="q19c">c) Fabric Controller</label>
+                    <div class="explanation">غلط: الـ <span class="term">Fabric Controller</span> بيدير التغييرات، مش التقسيم. الإجابة الصحيحة هي b.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q19" value="d" id="q19d">
+                    <label for="q19d">d) Name Server</label>
+                    <div class="explanation">غلط: الـ <span class="term">Name Server</span> بيدير تسجيل العقد، مش التقسيم. الإجابة الصحيحة هي b.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="a">
+                <p>20. What is an advantage of WWN Zoning?</p>
+                <div class="option">
+                    <input type="radio" name="q20" value="a" id="q20a">
+                    <label for="q20a">a) Flexibility in node movement</label>
+                    <div class="explanation">صح: الـ <span class="term">WWN Zoning</span> بيوفر مرونة لأن العقدة بتحتفظ باتصالها بمجموعتها حتى لو انتقلت لمنفذ سويتش آخر.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q20" value="b" id="q20b">
+                    <label for="q20b">b) Higher throughput</label>
+                    <div class="explanation">غلط: الـ <span class="term">WWN Zoning</span> مش بيزود الإنتاجية، دي خاصية الـ <span class="term">Link Aggregation</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q20" value="c" id="q20c">
+                    <label for="q20c">c) Fixed port assignment</label>
+                    <div class="explanation">غلط: الـ <span class="term">Fixed port assignment</span> خاصية الـ <span class="term">Port Zoning</span>، مش <span class="term">WWN Zoning</span>. الإجابة الصحيحة هي a.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q20" value="d" id="q20d">
+                    <label for="q20d">d) Reduced latency</label>
+                    <div class="explanation">غلط: الـ <span class="term">WWN Zoning</span> مش بيقلل زمن التأخير، بل بيوفر تحكم في الوصول. الإجابة الصحيحة هي a.</div>
+                </div>
+            </div>
+
+            <!-- True/False Questions -->
+            <div class="question" data-correct="true">
+                <p>21. FC-SAN supports data transfer speeds up to 16 Gb/s.</p>
+                <div class="option">
+                    <input type="radio" name="q21" value="true" id="q21t">
+                    <label for="q21t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-SAN</span> بيدعم سرعات نقل بيانات تصل إلى <span class="term">16 Gb/s</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q21" value="false" id="q21f">
+                    <label for="q21f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC-SAN</span> بيدعم سرعة <span class="term">16 Gb/s</span>.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="false">
+                <p>22. FC-SAN uses Ethernet cables for long-distance connections.</p>
+                <div class="option">
+                    <input type="radio" name="q22" value="true" id="q22t">
+                    <label for="q22t">True</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-SAN</span> بيستخدم كابلات الألياف البصرية للمسافات الطويلة، مش كابلات <span class="term">Ethernet</span>. الإجابة الصحيحة هي False.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q22" value="false" id="q22f">
+                    <label for="q22f">False</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-SAN</span> بيستخدم كابلات الألياف البصرية (<span class="term">optical fiber cables</span>) للمسافات الطويلة.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>23. FC Switch provides dedicated connectivity for each node.</p>
+                <div class="option">
+                    <input type="radio" name="q23" value="true" id="q23t">
+                    <label for="q23t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC Switch</span> بيوفر مسار اتصال مخصص لكل عقدة، مما يعزز الأداء.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q23" value="false" id="q23f">
+                    <label for="q23f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC Switch</span> بيوفر اتصال مخصص لكل عقدة.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>24. FC Director has a modular design.</p>
+                <div class="option">
+                    <input type="radio" name="q24" value="true" id="q24t">
+                    <label for="q24t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC Director</span> بيتميز بتصميم معياري (<span class="term">modular architecture</span>) وعدد منافذ أعلى.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q24" value="false" id="q24f">
+                    <label for="q24f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC Director</span> بيتميز بتصميم معياري.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="false">
+                <p>25. FC-AL allows direct connection between two nodes only.</p>
+                <div class="option">
+                    <input type="radio" name="q25" value="true" id="q25t">
+                    <label for="q25t">True</label>
+                    <div class="explanation">غلط: الـ <span class="term">FC-AL</span> بيوفر حلقة مشتركة للعقد، مش اتصال مباشر بين عقدتين. الإجابة الصحيحة هي False.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q25" value="false" id="q25f">
+                    <label for="q25f">False</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-AL</span> (Arbitrated Loop) بيوفر حلقة مشتركة، والـ <span class="term">Point-to-point</span> هو اللي بيسمح باتصال مباشر.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>26. FC-0 defines the physical interface in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q26" value="true" id="q26t">
+                    <label for="q26t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-0</span> هي الطبقة الأدنى في بروتوكول <span class="term">FC</span> وبتحدد الواجهة الفيزيائية.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q26" value="false" id="q26f">
+                    <label for="q26f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC-0</span> بتحدد الواجهة الفيزيائية.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>27. FC-1 handles encoding and decoding in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q27" value="true" id="q27t">
+                    <label for="q27t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-1</span> بتحدد كيفية تشفير البيانات (<span class="term">8-bit to 10-bit</span>) وفك تشفيرها.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q27" value="false" id="q27f">
+                    <label for="q27f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC-1</span> بتدير التشفير وفك التشفير.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>28. FC-2 defines the addressing structure in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q28" value="true" id="q28t">
+                    <label for="q28t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC-2</span> بتحدد هيكلية العنونة وتنظيم البيانات (<span class="term">frames, sequences, exchanges</span>).</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q28" value="false" id="q28f">
+                    <label for="q28f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC-2</span> بتحدد العنونة.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>29. FC Address is assigned dynamically during Fabric Login.</p>
+                <div class="option">
+                    <input type="radio" name="q29" value="true" id="q29t">
+                    <label for="q29t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">FC Address</span> بيُخصص ديناميكيًا أثناء عملية <span class="term">Fabric Login</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q29" value="false" id="q29f">
+                    <label for="q29f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">FC Address</span> بيُخصص ديناميكيًا.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>30. WWN is a fixed identifier for ports in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q30" value="true" id="q30t">
+                    <label for="q30t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">WWN</span> هو معرف ثابت 64 بت يُستخدم للمنافذ في <span class="term">FC-SAN</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q30" value="false" id="q30f">
+                    <label for="q30f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">WWN</span> معرف ثابت.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>31. Frame is the basic unit of data transfer in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q31" value="true" id="q31t">
+                    <label for="q31t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">Frame</span> هو الوحدة الأساسية لنقل البيانات في <span class="term">FC-SAN</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q31" value="false" id="q31f">
+                    <label for="q31f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">Frame</span> هو الوحدة الأساسية.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>32. Buffer-to-Buffer Credit is used for flow control in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q32" value="true" id="q32t">
+                    <label for="q32t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">Buffer-to-Buffer Credit</span> هو الآلية المستخدمة للتحكم في التدفق في <span class="term">FC-SAN</span>.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q32" value="false" id="q32f">
+                    <label for="q32f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">BB_Credit</span> بيُستخدم للتحكم في التدفق.</div>
+                </div>
+            </div>
+
+            <div class="question" data-correct="true">
+                <p>33. Zoning divides nodes into logical groups in FC-SAN.</p>
+                <div class="option">
+                    <input type="radio" name="q33" value="true" id="q33t">
+                    <label for="q33t">True</label>
+                    <div class="explanation">صح: الـ <span class="term">Zoning</span> بيسمح بتقسيم العقد في الـ <span class="term">fabric</span> إلى مجموعات منطقية.</div>
+                </div>
+                <div class="option">
+                    <input type="radio" name="q33" value="false" id="q33f">
+                    <label for="q33f">False</label>
+                    <div class="explanation">غلط: الإجابة الصحيحة هي True لأن الـ <span class="term">Zoning</span> بيقسم العقد لمجموعات منطقية.</div>
+                </div>
+            </div>
+        </form>
+        <button id="next-btn" disabled>Next</button>
+    </section>
+
+    <div class="score-container" id="score-container">
+        <h3>Your Score: <span id="score"></span>/33</h3>
+        <p><span id="percentage"></span>%</p>
+        <button id="restart-btn">Restart Quiz</button>
+    </div>
+
+    <footer>
+        <p>Developed by Eng: XE Ahmed Refat – EELU Student Sohag branch</p>
+        <p>Contact: <a href="mailto:ahmed.refat@example.com">ahmed.refat@example.com</a></p>
+        <p>&copy; 2025 XE Quiz Platform. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const questions = document.querySelectorAll('.question');
+        const nextBtn = document.getElementById('next-btn');
+        const quizForm = document.getElementById('quiz-form');
+        const scoreContainer = document.getElementById('score-container');
+        const scoreDisplay = document.getElementById('score');
+        const percentageDisplay = document.getElementById('percentage');
+        const restartBtn = document.getElementById('restart-btn');
+        const progressBar = document.getElementById('progress');
+        let currentQuestion = 0;
+        let score = 0;
+
+        questions[currentQuestion].classList.add('active');
+
+        quizForm.addEventListener('change', () => {
+            const selectedOption = questions[currentQuestion].querySelector('input:checked');
+            if (selectedOption) {
+                nextBtn.disabled = false;
+                const correctAnswer = questions[currentQuestion].dataset.correct;
+                const options = questions[currentQuestion].querySelectorAll('.option');
+                options.forEach(option => {
+                    const input = option.querySelector('input');
+                    if (input.value === correctAnswer) {
+                        option.classList.add('correct');
+                    } else if (input.checked && input.value !== correctAnswer) {
+                        option.classList.add('wrong');
+                    }
+                });
+                if (selectedOption.value === correctAnswer) {
+                    score++;
+                }
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            questions[currentQuestion].classList.remove('active');
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                questions[currentQuestion].classList.add('active');
+                nextBtn.disabled = true;
+                updateProgress();
+            } else {
+                showScore();
+            }
+        });
+
+        restartBtn.addEventListener('click', () => {
+            score = 0;
+            currentQuestion = 0;
+            questions.forEach(q => {
+                q.classList.remove('active');
+                q.querySelectorAll('.option').forEach(opt => {
+                    opt.classList.remove('correct', 'wrong');
+                    opt.querySelector('input').checked = false;
+                });
+            });
+            questions[0].classList.add('active');
+            scoreContainer.style.display = 'none';
+            quizForm.style.display = 'block';
+            nextBtn.disabled = true;
+            updateProgress();
+        });
+
+        function updateProgress() {
+            const progressPercentage = ((currentQuestion + 1) / questions.length) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+        }
+
+        function showScore() {
+            quizForm.style.display = 'none';
+            nextBtn.style.display = 'none';
+            scoreContainer.style.display = 'block';
+            scoreDisplay.textContent = score;
+            const percentage = ((score / questions.length) * 100).toFixed(2);
+            percentageDisplay.textContent = percentage;
+        }
+    </script>
+</body>
+</html>
