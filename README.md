@@ -35,7 +35,7 @@ To run the quiz webpage locally or deploy it, follow these steps:
 1. **Clone the Repository**:
 
    ```bash
-   git clone https://github.com/your-username/fc-san-quiz.git
+   git clone https://github.com/Xeahmed/Lecture8-Quiz-FC-SAN.git
    cd fc-san-quiz
    ```
 
@@ -95,8 +95,9 @@ This project is licensed under the MIT License. See the LICENSE file for details
 For questions or feedback, contact:
 
 - **Eng. XE Ahmed Refat**
-- **Email**: ahmed.refat@example.com
-- **GitHub**: your-username
+- **Email**: a.xp2121@gmail.com
+- **GitHub**: [Xeahmed](https://github.com/Xeahmed)
+- **LinkedIn**: [ِAhmed Refat Mohamed](https://www.linkedin.com/in/ahmed-refat-mohamed-41386629a/)
 
 ---
 
